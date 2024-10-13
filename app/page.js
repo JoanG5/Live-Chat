@@ -21,45 +21,39 @@ import SignIn from "./components/SignIn";
 export default function Home() {
   const [user] = useAuthState(auth);
 
-  console.log(user);
-
   async function findOrCreateRoom(userId) {
-    const roomsRef = collection(db, "rooms");
-
-    const availableRoomsQuery = query(
-      roomsRef,
-      where("users", "<", 2),
+    const roomsRef = query(
+      collection(db, "rooms"),
+      where("userSize", "<", 2),
       limit(1)
     );
+    const rooms = await getDocs(roomsRef);
 
-    const availableRoomsSnapshot = await getDocs(availableRoomsQuery);
-
-    if (availableRoomsSnapshot.empty) {
-      const newRoomRef = await addDoc(roomsRef, {
+    if (rooms.docs.length > 0) {
+      const users = rooms.docs[0].data().users;
+      users.push(userId);
+      const roomRef = doc(db, "rooms", rooms.docs[0].id);
+      await updateDoc(roomRef, {
+        users: users,
+        userSize: rooms.docs[0].data().userSize + 1,
+      });
+      console.log("Added to " + rooms.docs[0].data().name);
+    } else {
+      const newRoomRef = await addDoc(collection(db, "rooms"), {
+        name: "Room 3",
         users: [userId],
+        userSize: 1,
       });
 
       console.log(`Created new room: ${newRoomRef.id}`);
       return newRoomRef.id;
-    } else {
-      const room = availableRoomsSnapshot.docs[0];
-      const roomData = room.data();
-
-      await updateDoc(doc(db, "rooms", room.id), {
-        users: [...roomData.users, userId],
-      });
-
-      console.log(`User added to room: ${room.id}`);
-      return room.id;
     }
   }
 
   return (
     <div>
-      <SignIn 
-        user={user}
-      />
-      <button onClick={() => findOrCreateRoom("user2")}>
+      <SignIn user={user} />
+      <button onClick={() => findOrCreateRoom(user.uid)}>
         Find or create room
       </button>
       {/* <ChatBox /> */}
