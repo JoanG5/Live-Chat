@@ -1,56 +1,68 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { db } from "./firebase/config";
 import {
   addDoc,
   collection,
-  getDocs,
+  updateDoc,
   query,
-  orderBy,
+  where,
+  getDocs,
+  doc,
+  limit,
 } from "firebase/firestore";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "./firebase/config";
+
+import ChatBox from "./components/ChatBox";
+import SignIn from "./components/SignIn";
 
 export default function Home() {
-  const [chatMessages, setChatMessages] = useState([]);
-  const [message, setMessage] = useState("");
+  const [user] = useAuthState(auth);
 
-  useEffect(() => {
-    const getMessages = async () => {
-      const messagesQuery = query(
-        collection(db, "messages"),
-        orderBy("createdAt", "asc")
-      );
-      const messages = await getDocs(messagesQuery);
-      const messagesArray = messages.docs.map((doc) => doc.data());
-      setChatMessages(messagesArray);
-    };
-    getMessages();
-  });
+  console.log(user);
 
-  const addMessage = async (e) => {
-    e.preventDefault();
-    if (!message) return;
-    await addDoc(collection(db, "messages"), {
-      message: message,
-      createdAt: new Date(),
-    });
-    setMessage("");
-    console.log("Message added!");
-  };
+  async function findOrCreateRoom(userId) {
+    const roomsRef = collection(db, "rooms");
+
+    const availableRoomsQuery = query(
+      roomsRef,
+      where("users", "<", 2),
+      limit(1)
+    );
+
+    const availableRoomsSnapshot = await getDocs(availableRoomsQuery);
+
+    if (availableRoomsSnapshot.empty) {
+      const newRoomRef = await addDoc(roomsRef, {
+        users: [userId],
+      });
+
+      console.log(`Created new room: ${newRoomRef.id}`);
+      return newRoomRef.id;
+    } else {
+      const room = availableRoomsSnapshot.docs[0];
+      const roomData = room.data();
+
+      await updateDoc(doc(db, "rooms", room.id), {
+        users: [...roomData.users, userId],
+      });
+
+      console.log(`User added to room: ${room.id}`);
+      return room.id;
+    }
+  }
 
   return (
     <div>
-      <h1>Live Chat</h1>
-      <input
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-      ></input>
-      <button onClick={addMessage}>Send</button>
-      <div>
-        {chatMessages.map((chatMessage, index) => (
-          <div key={index}>{chatMessage.message}</div>
-        ))}
-      </div>
+      <SignIn 
+        user={user}
+      />
+      <button onClick={() => findOrCreateRoom("user2")}>
+        Find or create room
+      </button>
+      {/* <ChatBox /> */}
     </div>
   );
 }
