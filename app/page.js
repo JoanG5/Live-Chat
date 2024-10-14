@@ -30,6 +30,12 @@ export default function Home() {
     const rooms = await getDocs(roomsRef);
 
     if (rooms.docs.length > 0) {
+      if (rooms.docs[0].data().users.includes(userId)) {
+        console.log("Already in room");
+        return;
+        // MIGHT ADD DELETE TO THIS AS WELL
+      }
+
       const users = rooms.docs[0].data().users;
       users.push(userId);
       const roomRef = doc(db, "rooms", rooms.docs[0].id);
