@@ -17,6 +17,7 @@ import { auth } from "./firebase/config";
 
 import ChatBox from "./components/ChatBox";
 import SignIn from "./components/SignIn";
+import ProfileHeader from "./components/ProfileHeader";
 
 export default function Home() {
   const [user] = useAuthState(auth);
@@ -58,6 +59,7 @@ export default function Home() {
 
   return (
     <div>
+      <ProfileHeader user={user} />
       <SignIn user={user} />
       <button onClick={() => findOrCreateRoom(user.uid)}>
         Find or create room
